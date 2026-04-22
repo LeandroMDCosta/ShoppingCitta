@@ -15,7 +15,6 @@ logging.basicConfig(
 )
 
 class CittaMallScraper:
-    """Scraper para extração de lojas do Shopping Città usando Context Manager."""
     
     def __init__(self, headless: bool = True):
         self.url = "https://cittaofficemall.com.br/site/lojas/"
@@ -24,12 +23,10 @@ class CittaMallScraper:
         self.wait = None
 
     def __enter__(self):
-        """Inicializa o driver ao usar o bloco 'with'."""
         self._setup_driver()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Garante que o driver será fechado, independentemente de erros."""
         if self.driver:
             self.driver.quit()
             logging.info("Browser finalizado.")
@@ -46,7 +43,6 @@ class CittaMallScraper:
         self.wait = WebDriverWait(self.driver, 15)
 
     def _extract_stores_from_page(self) -> List[Dict[str, str]]:
-        """Extrai os dados das lojas atualmente visíveis na página."""
         extracted_data = []
         stores = self.driver.find_elements(By.CLASS_NAME, "kw-listing-item")
 
@@ -56,7 +52,6 @@ class CittaMallScraper:
                 localizacao = store.find_element(By.CLASS_NAME, "kw-listing-item-location").text.strip()
                 extracted_data.append({"nome": nome, "localizacao": localizacao})
             except StaleElementReferenceException:
-                # Ocorre quando o DOM atualiza durante a leitura. Podemos ignorar e pegar na próxima passada ou logar.
                 continue
             except Exception as e:
                 logging.warning(f"Falha ao extrair dados de uma loja específica. Erro: {e}")
@@ -65,7 +60,6 @@ class CittaMallScraper:
         return extracted_data
 
     def run(self) -> List[Dict[str, str]]:
-        """Executa o pipeline principal de navegação e extração."""
         logging.info(f"Acessando {self.url}...")
         self.driver.get(self.url)
 
@@ -81,7 +75,7 @@ class CittaMallScraper:
                 self.driver.execute_script("arguments[0].click();", button)
                 logging.info("Botão 'Carregar mais' clicado...")
                 
-                # Espera dinâmica: Aguarda até que o número de lojas seja maior que o anterior
+                # Aguarda até que o número de lojas seja maior que o anterior
                 self.wait.until(
                     lambda driver: len(driver.find_elements(By.CLASS_NAME, "kw-listing-item")) > current_store_count
                 )
@@ -98,7 +92,6 @@ class CittaMallScraper:
 
 
 def save_to_csv(dados: List[Dict], filename: str = "lojas_citta.csv"):
-    """Função desacoplada para salvar os dados em CSV."""
     if not dados:
         logging.warning("Sem dados para salvar.")
         return
@@ -107,14 +100,12 @@ def save_to_csv(dados: List[Dict], filename: str = "lojas_citta.csv"):
     caminho_completo = os.path.join(diretorio, filename)
     
     df = pd.DataFrame(dados)
-    # Pandas é ótimo, mas se o volume de dados for muito grande, considere usar o módulo 'csv' nativo.
     df = df.drop_duplicates(subset=['nome'])
     df.to_csv(caminho_completo, index=False, encoding='utf-8-sig')
     logging.info(f"Arquivo salvo com sucesso em: {caminho_completo}")
 
 
 if __name__ == "__main__":
-    # Usando o Context Manager (with) garante que o driver feche em caso de erro no meio do processo
     with CittaMallScraper(headless=True) as scraper:
         resultado = scraper.run()
 
